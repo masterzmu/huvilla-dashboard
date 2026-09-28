@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Huvilla — Verkko</title>
+<link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+CiAgPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMTQiIGZpbGw9IiMwYzBlMTIiLz4KICA8ZyBmaWxsPSIjM2RmZjlhIj4KICAgIDxyZWN0IHg9IjEyIiB5PSIyOCIgd2lkdGg9IjQwIiBoZWlnaHQ9IjYiIHJ4PSIyIi8+CiAgICA8Y2lyY2xlIGN4PSIyMCIgY3k9IjMxIiByPSIzIi8+CiAgICA8Y2lyY2xlIGN4PSIzMiIgY3k9IjMxIiByPSIzIi8+CiAgICA8Y2lyY2xlIGN4PSI0NCIgY3k9IjMxIiByPSIzIi8+CiAgICA8cGF0aCBkPSJNMTYgMjIgUTMyIDE0IDQ4IDIyIiBmaWxsPSJub25lIiBzdHJva2U9IiMzZGZmOWEiIHN0cm9rZS13aWR0aD0iMyIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+CiAgICA8cGF0aCBkPSJNMTIgMTcgUTMyIDcgNTIgMTciIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzNkZmY5YSIgc3Ryb2tlLXdpZHRoPSIyLjUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgb3BhY2l0eT0iMC42Ii8+CiAgPC9nPgo8L3N2Zz4=" type="image/svg+xml">
+<meta name="theme-color" content="#0c0e12">
+<style>
+  :root {
+    --bg: #0c0e12;
+    --bg2: #141820;
+    --card: #1a1f2a;
+    --card-hover: #222836;
+    --border: #2a3140;
+    --accent: #3dff9a;
+    --accent-dim: rgba(61, 255, 154, 0.15);
+    --accent2: #5b8cff;
+    --accent2-dim: rgba(91, 140, 255, 0.15);
+    --warn: #ffb84d;
+    --warn-dim: rgba(255, 184, 77, 0.12);
+    --danger: #ff6b7a;
+    --danger-dim: rgba(255, 107, 122, 0.12);
+    --muted: #8b95a8;
+    --text: #e8ecf4;
+    --text-dim: #a0aabd;
+    --radius: 14px;
+    --shadow: 0 4px 24px rgba(0,0,0,0.35);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    min-height: 100vh;
+    padding: 1.25rem 1rem 3rem;
+  }
+
+  .wrap { max-width: 920px; margin: 0 auto; }
+
+  header {
+    background: linear-gradient(135deg, #1a2332 0%, #12161f 100%);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.5rem 1.4rem;
+    margin-bottom: 1.25rem;
+    box-shadow: var(--shadow);
+    position: relative;
+    overflow: hidden;
+  }
+  header::before {
+    content: "";
+    position: absolute;
+    top: -40%;
+    right: -10%;
+    width: 280px;
+    height: 280px;
+    background: radial-gradient(circle, rgba(61,255,154,0.12) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .header-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    position: relative;
+  }
+  header h1 {
+    font-size: 1.55rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin-bottom: 0.35rem;
+  }
+  header h1 span { color: var(--accent); }
+  .meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem 1.2rem;
+    margin-top: 0.85rem;
+    font-size: 0.9rem;
+    color: var(--text-dim);
+    position: relative;
+  }
+
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.3rem 0.75rem;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    border: 1px solid transparent;
+  }
+  .pill .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+  .pill.healthy {
+    background: var(--accent-dim);
+    color: var(--accent);
+    border-color: rgba(61,255,154,0.35);
+  }
+  .pill.warn {
+    background: var(--warn-dim);
+    color: var(--warn);
+    border-color: rgba(255,184,77,0.4);
+  }
+
+  .grid {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: 1fr;
+  }
+  @media (min-width: 680px) {
+    .grid-2 { grid-template-columns: 1fr 1fr; }
+    .grid-4 { grid-template-columns: repeat(4, 1fr); }
+    .span-2 { grid-column: 1 / -1; }
+  }
+  @media (min-width: 680px) and (max-width: 820px) {
+    .grid-4 { grid-template-columns: 1fr 1fr; }
+  }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.2rem 1.15rem;
+    box-shadow: var(--shadow);
+  }
+  .card h2 {
+    font-size: 0.95rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    margin-bottom: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .card h2 .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    display: inline-block;
+  }
+
+  .metric-big {
+    font-size: 2.4rem;
+    font-weight: 800;
+    color: var(--accent);
+    line-height: 1.1;
+    letter-spacing: -0.03em;
+  }
+  .metric-big.muted { color: var(--muted); font-size: 1.8rem; }
+  .metric-unit {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--muted);
+    margin-left: 0.15rem;
+  }
+  .metric-sub { color: var(--muted); font-size: 0.8rem; margin-top: 0.25rem; }
+  .metric-label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    margin-bottom: 0.35rem;
+  }
+
+  .metric-tile {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0.9rem 0.95rem;
+  }
+
+  .wifi-row {
+    display: grid;
+    gap: 0.55rem;
+  }
+  .wifi-band {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0.75rem 0.9rem;
+  }
+  .wifi-band .left { display: flex; flex-direction: column; gap: 0.15rem; }
+  .wifi-band .band-name { font-weight: 700; font-size: 0.95rem; }
+  .wifi-band .band-meta { font-size: 0.8rem; color: var(--muted); }
+  .wifi-band .vals {
+    text-align: right;
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: var(--accent);
+  }
+  .wifi-band .vals small {
+    display: block;
+    font-weight: 500;
+    font-size: 0.75rem;
+    color: var(--muted);
+  }
+
+  .sec-badge {
+    display: inline-block;
+    margin-top: 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--accent2);
+    background: var(--accent2-dim);
+    border: 1px solid rgba(91,140,255,0.35);
+    padding: 0.2rem 0.55rem;
+    border-radius: 6px;
+  }
+
+  table.hist {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+  }
+  table.hist th {
+    text-align: left;
+    color: var(--muted);
+    font-weight: 600;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 0.45rem 0.45rem;
+    border-bottom: 1px solid var(--border);
+  }
+  table.hist td {
+    padding: 0.6rem 0.45rem;
+    border-bottom: 1px solid rgba(42,49,64,0.5);
+    vertical-align: middle;
+  }
+  table.hist tr:last-child td { border-bottom: none; }
+  table.hist tr:hover td { background: rgba(34,40,54,0.45); }
+  .spark {
+    display: inline-flex;
+    align-items: flex-end;
+    gap: 2px;
+    height: 22px;
+    vertical-align: middle;
+  }
+  .spark span {
+    width: 5px;
+    border-radius: 2px 2px 0 0;
+    background: var(--accent);
+    opacity: 0.85;
+    min-height: 3px;
+  }
+  .notes { color: var(--text-dim); font-size: 0.82rem; max-width: 180px; }
+  .nullish { color: var(--muted); }
+
+  footer {
+    margin-top: 1.5rem;
+    text-align: center;
+    font-size: 0.78rem;
+    color: var(--muted);
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="header-top">
+      <div>
+        <h1>Huvilla — <span>Verkko</span></h1>
+        <div class="meta-row" id="metaRow"></div>
+      </div>
+      <div id="statusPill"></div>
+    </div>
+  </header>
+
+  <div class="grid grid-4" id="metrics" style="margin-bottom:1rem"></div>
+
+  <div class="grid grid-2">
+    <div class="card">
+      <h2><span class="dot"></span> Wi‑Fi</h2>
+      <div class="wifi-row" id="wifiCard"></div>
+      <div id="securityBadge"></div>
+    </div>
+
+    <div class="card">
+      <h2><span class="dot"></span> Viimeisin check</h2>
+      <div id="lastDetail"></div>
+    </div>
+
+    <div class="card span-2">
+      <h2><span class="dot"></span> Historia</h2>
+      <div style="overflow-x:auto">
+        <table class="hist" id="histTable">
+          <thead>
+            <tr>
+              <th>Pvm</th>
+              <th>RSSI</th>
+              <th>GW</th>
+              <th>Move</th>
+              <th>↓ / ↑</th>
+              <th>Spark</th>
+              <th>Muistiinpano</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <footer>Data upotettu <code>history.json</code> → <code>update_dashboard.py</code>. Ei vaadi palvelinta.</footer>
+</div>
+
+<script>
+const HISTORY = [
+  {
+    "date": "2026-09-27",
+    "period": "ilta",
+    "wifi_24": {
+      "channel": 6,
+      "width_mhz": 20
+    },
+    "wifi_5": {
+      "channel": 48,
+      "width_mhz": 160
+    },
+    "security": "WPA3",
+    "rssi": -60,
+    "gw_ms": 3,
+    "move_ms": 4,
+    "download_mbps": null,
+    "upload_mbps": null,
+    "notes": "Valoo-tune jälkeen"
+  },
+  {
+    "date": "2026-09-28",
+    "period": "aamu",
+    "wifi_24": {
+      "channel": 6,
+      "width_mhz": 20
+    },
+    "wifi_5": {
+      "channel": 48,
+      "width_mhz": 160
+    },
+    "security": "WPA3",
+    "rssi": -60,
+    "gw_ms": 3,
+    "move_ms": 4,
+    "download_mbps": null,
+    "upload_mbps": null,
+    "notes": "uudelleenmittaus"
+  }
+];
+
+(() => {
+  const hist = Array.isArray(HISTORY) ? [...HISTORY] : [];
+  hist.sort((a, b) => {
+    const ka = `${a.date || ''} ${a.period === 'ilta' ? '2' : '1'}`;
+    const kb = `${b.date || ''} ${b.period === 'ilta' ? '2' : '1'}`;
+    return ka.localeCompare(kb);
+  });
+
+  const last = hist[hist.length - 1];
+  if (!last) {
+    document.getElementById('metaRow').textContent = 'Ei mittauksia vielä';
+    return;
+  }
+
+  const fmtDate = (d) => {
+    if (!d) return '—';
+    const [y, m, day] = d.split('-').map(Number);
+    return `${day}.${m}.${y}`;
+  };
+  const periodLabel = (p) => (p === 'ilta' ? 'ilta' : p === 'aamu' ? 'aamu' : (p || ''));
+  const num = (v, digits = 0) => (v == null || Number.isNaN(v) ? null : Number(v).toFixed(digits));
+  const show = (v, unit = '', digits = 0) => {
+    const n = num(v, digits);
+    return n == null ? '—' : `${n}${unit}`;
+  };
+
+  function statusOf(c) {
+    if (!c) return 'warn';
+    const badRssi = c.rssi != null && c.rssi < -70;
+    const badGw = c.gw_ms != null && c.gw_ms > 20;
+    const badMove = c.move_ms != null && c.move_ms > 40;
+    return (badRssi || badGw || badMove) ? 'warn' : 'healthy';
+  }
+
+  const st = statusOf(last);
+  document.getElementById('statusPill').innerHTML =
+    `<span class="pill ${st}"><span class="dot"></span>${st === 'healthy' ? 'Terve' : 'Varoitus'}</span>`;
+
+  document.getElementById('metaRow').innerHTML =
+    `<span>Viimeisin: <strong style="color:var(--text)">${fmtDate(last.date)} ${periodLabel(last.period)}</strong></span>` +
+    (last.notes ? `<span>${escapeHtml(last.notes)}</span>` : '');
+
+  const metrics = [
+    { label: 'Lataus', value: last.download_mbps, unit: 'Mbps', digits: 0, sub: 'download' },
+    { label: 'Lähetys', value: last.upload_mbps, unit: 'Mbps', digits: 0, sub: 'upload' },
+    { label: 'Gateway', value: last.gw_ms, unit: 'ms', digits: 0, sub: 'latenssi' },
+    { label: 'Move', value: last.move_ms, unit: 'ms', digits: 0, sub: 'ulkoinen' },
+    { label: 'RSSI', value: last.rssi, unit: 'dBm', digits: 0, sub: 'Wi‑Fi' },
+  ];
+
+  const metricsEl = document.getElementById('metrics');
+  metricsEl.className = 'grid';
+  metricsEl.style.gridTemplateColumns = 'repeat(auto-fit, minmax(140px, 1fr))';
+  metricsEl.style.marginBottom = '1rem';
+  metricsEl.innerHTML = metrics.map(m => {
+    const empty = m.value == null;
+    const val = empty
+      ? `<div class="metric-big muted">—</div>`
+      : `<div class="metric-big">${num(m.value, m.digits ?? 0)}<span class="metric-unit">${m.unit}</span></div>`;
+    const sub = `<div class="metric-sub">${empty ? 'ei mitattu' : m.sub}</div>`;
+    return `<div class="metric-tile"><div class="metric-label">${m.label}</div>${val}${sub}</div>`;
+  }).join('');
+
+  // Show RSSI as part of last detail; also replace one tile if speeds null — already shown
+  // Wi-Fi card
+  const w24 = last.wifi_24 || {};
+  const w5 = last.wifi_5 || {};
+  document.getElementById('wifiCard').innerHTML = `
+    <div class="wifi-band">
+      <div class="left">
+        <div class="band-name">2,4 GHz</div>
+        <div class="band-meta">kaista</div>
+      </div>
+      <div class="vals">ch ${w24.channel ?? '—'} / ${w24.width_mhz ?? '—'} MHz
+        <small>RSSI ${show(last.rssi, ' dBm')}</small>
+      </div>
+    </div>
+    <div class="wifi-band">
+      <div class="left">
+        <div class="band-name">5 GHz</div>
+        <div class="band-meta">kaista</div>
+      </div>
+      <div class="vals">ch ${w5.channel ?? '—'} / ${w5.width_mhz ?? '—'} MHz
+        <small>leveä kanava</small>
+      </div>
+    </div>`;
+
+  document.getElementById('securityBadge').innerHTML =
+    last.security ? `<span class="sec-badge">Turva: ${escapeHtml(last.security)}</span>` : '';
+
+  document.getElementById('lastDetail').innerHTML = `
+    <div class="wifi-row">
+      <div class="wifi-band">
+        <div class="left"><div class="band-name">RSSI</div><div class="band-meta">signaalitaso</div></div>
+        <div class="vals">${show(last.rssi, ' dBm')}</div>
+      </div>
+      <div class="wifi-band">
+        <div class="left"><div class="band-name">Gateway</div><div class="band-meta">latenssi</div></div>
+        <div class="vals">${show(last.gw_ms, ' ms')}</div>
+      </div>
+      <div class="wifi-band">
+        <div class="left"><div class="band-name">Move</div><div class="band-meta">ulkoinen</div></div>
+        <div class="vals">${show(last.move_ms, ' ms')}</div>
+      </div>
+    </div>`;
+
+  // History table + sparklines (RSSI inverted scale for height)
+  const tbody = document.querySelector('#histTable tbody');
+  const rssiVals = hist.map(h => h.rssi).filter(v => v != null);
+  const rMin = rssiVals.length ? Math.min(...rssiVals) : -80;
+  const rMax = rssiVals.length ? Math.max(...rssiVals) : -40;
+
+  const rows = [...hist].reverse();
+  tbody.innerHTML = rows.map((h, idx) => {
+    // spark: all points up to this check (chronological), highlight last bar of row's series end
+    const upto = hist.slice(0, hist.length - idx);
+    const bars = upto.map(p => {
+      let hgt = 8;
+      if (p.rssi != null && rMax !== rMin) {
+        hgt = 4 + ((p.rssi - rMin) / (rMax - rMin)) * 18;
+      } else if (p.rssi != null) {
+        hgt = 14;
+      }
+      return `<span style="height:${hgt.toFixed(1)}px"></span>`;
+    }).join('');
+
+    const down = h.download_mbps == null ? '—' : num(h.download_mbps, 0);
+    const up = h.upload_mbps == null ? '—' : num(h.upload_mbps, 0);
+    const speed = (h.download_mbps == null && h.upload_mbps == null)
+      ? '<span class="nullish">—</span>'
+      : `${down} / ${up}`;
+
+    return `<tr>
+      <td>${fmtDate(h.date)} <span class="nullish">${periodLabel(h.period)}</span></td>
+      <td>${show(h.rssi)}</td>
+      <td>${show(h.gw_ms, ' ms')}</td>
+      <td>${show(h.move_ms, ' ms')}</td>
+      <td>${speed}</td>
+      <td><div class="spark" title="RSSI-trendi">${bars}</div></td>
+      <td class="notes">${escapeHtml(h.notes || '')}</td>
+    </tr>`;
+  }).join('');
+
+  function escapeHtml(s) {
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+})();
+</script>
+</body>
+</html>
