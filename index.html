@@ -225,8 +225,15 @@
     border-radius: 6px;
   }
 
+  .hist-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin: 0 -0.15rem;
+    padding-bottom: 0.15rem;
+  }
   table.hist {
     width: 100%;
+    min-width: 640px;
     border-collapse: collapse;
     font-size: 0.88rem;
   }
@@ -239,12 +246,15 @@
     letter-spacing: 0.04em;
     padding: 0.45rem 0.45rem;
     border-bottom: 1px solid var(--border);
+    white-space: nowrap;
   }
   table.hist td {
     padding: 0.6rem 0.45rem;
     border-bottom: 1px solid rgba(42,49,64,0.5);
     vertical-align: middle;
+    white-space: nowrap;
   }
+  table.hist td.notes { white-space: normal; }
   table.hist tr:last-child td { border-bottom: none; }
   table.hist tr:hover td { background: rgba(34,40,54,0.45); }
   .spark {
@@ -261,8 +271,80 @@
     opacity: 0.85;
     min-height: 3px;
   }
-  .notes { color: var(--text-dim); font-size: 0.82rem; max-width: 180px; }
+  .notes { color: var(--text-dim); font-size: 0.82rem; max-width: 220px; }
   .nullish { color: var(--muted); }
+
+  /* Mobile: card-per-check (gym session-style tiles) */
+  .hist-cards {
+    display: none;
+    gap: 0.55rem;
+  }
+  .hist-check {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0.75rem 0.9rem;
+  }
+  .hist-check .hc-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.6rem;
+    margin-bottom: 0.55rem;
+  }
+  .hist-check .hc-date {
+    font-weight: 700;
+    font-size: 0.95rem;
+  }
+  .hist-check .hc-period {
+    display: block;
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: var(--muted);
+    margin-top: 0.1rem;
+  }
+  .hist-check .hc-metrics {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.4rem 0.65rem;
+  }
+  .hist-check .hc-metric {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    background: rgba(12,14,18,0.35);
+    border-radius: 8px;
+    padding: 0.45rem 0.55rem;
+  }
+  .hist-check .hc-metric .k {
+    font-size: 0.68rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+  }
+  .hist-check .hc-metric .v {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: var(--accent);
+  }
+  .hist-check .hc-notes {
+    margin-top: 0.55rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid rgba(42,49,64,0.55);
+    font-size: 0.82rem;
+    color: var(--text-dim);
+    line-height: 1.4;
+  }
+  .hist-check .hc-spark {
+    margin-top: 0.5rem;
+  }
+
+  @media (max-width: 679px) {
+    .hist-scroll { display: none; }
+    .hist-cards { display: grid; }
+    .card { padding: 1rem 0.9rem; }
+  }
 
   footer {
     margin-top: 1.5rem;
@@ -300,7 +382,7 @@
 
     <div class="card span-2">
       <h2><span class="dot"></span> Historia</h2>
-      <div style="overflow-x:auto">
+      <div class="hist-scroll">
         <table class="hist" id="histTable">
           <thead>
             <tr>
@@ -316,6 +398,7 @@
           <tbody></tbody>
         </table>
       </div>
+      <div class="hist-cards" id="histCards" aria-label="Historia korteissa"></div>
     </div>
   </div>
 
@@ -496,8 +579,12 @@ const HISTORY = [
   const rMax = rssiVals.length ? Math.max(...rssiVals) : -40;
 
   const rows = [...hist].reverse();
-  tbody.innerHTML = rows.map((h, idx) => {
-    // spark: all points up to this check (chronological), highlight last bar of row's series end
+  const cardsEl = document.getElementById('histCards');
+  const tableHtml = [];
+  const cardHtml = [];
+
+  rows.forEach((h, idx) => {
+    // spark: all points up to this check (chronological)
     const upto = hist.slice(0, hist.length - idx);
     const bars = upto.map(p => {
       let hgt = 8;
@@ -511,20 +598,43 @@ const HISTORY = [
 
     const down = h.download_mbps == null ? '—' : num(h.download_mbps, 0);
     const up = h.upload_mbps == null ? '—' : num(h.upload_mbps, 0);
-    const speed = (h.download_mbps == null && h.upload_mbps == null)
+    const speedEmpty = h.download_mbps == null && h.upload_mbps == null;
+    const speed = speedEmpty
       ? '<span class="nullish">—</span>'
       : `${down} / ${up}`;
+    const speedCard = speedEmpty ? '—' : `${down} / ${up} Mbps`;
+    const notes = escapeHtml(h.notes || '');
 
-    return `<tr>
+    tableHtml.push(`<tr>
       <td>${fmtDate(h.date)} <span class="nullish">${periodLabel(h.period)}</span></td>
       <td>${show(h.rssi)}</td>
       <td>${show(h.gw_ms, ' ms')}</td>
       <td>${show(h.move_ms, ' ms')}</td>
       <td>${speed}</td>
       <td><div class="spark" title="RSSI-trendi">${bars}</div></td>
-      <td class="notes">${escapeHtml(h.notes || '')}</td>
-    </tr>`;
-  }).join('');
+      <td class="notes">${notes}</td>
+    </tr>`);
+
+    cardHtml.push(`<article class="hist-check">
+      <div class="hc-top">
+        <div>
+          <div class="hc-date">${fmtDate(h.date)}</div>
+          <span class="hc-period">${periodLabel(h.period) || '—'}</span>
+        </div>
+        <div class="spark" title="RSSI-trendi">${bars}</div>
+      </div>
+      <div class="hc-metrics">
+        <div class="hc-metric"><span class="k">RSSI</span><span class="v">${show(h.rssi, ' dBm')}</span></div>
+        <div class="hc-metric"><span class="k">Gateway</span><span class="v">${show(h.gw_ms, ' ms')}</span></div>
+        <div class="hc-metric"><span class="k">Move</span><span class="v">${show(h.move_ms, ' ms')}</span></div>
+        <div class="hc-metric"><span class="k">↓ / ↑</span><span class="v">${speedCard}</span></div>
+      </div>
+      ${notes ? `<div class="hc-notes">${notes}</div>` : ''}
+    </article>`);
+  });
+
+  tbody.innerHTML = tableHtml.join('');
+  if (cardsEl) cardsEl.innerHTML = cardHtml.join('');
 
   function escapeHtml(s) {
     return String(s)
