@@ -346,6 +346,85 @@
     .card { padding: 1rem 0.9rem; }
   }
 
+
+  /* Time series */
+  #charts {
+    position: relative;
+    display: grid;
+    gap: 1.05rem;
+  }
+  .chart-block { min-width: 0; }
+  .chart-block h3 {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--text-dim);
+    margin-bottom: 0.35rem;
+    letter-spacing: 0.01em;
+  }
+  .chart-svg-host { width: 100%; }
+  .chart-svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    touch-action: pan-y;
+  }
+  .chart-svg .grid { stroke: rgba(42, 49, 64, 0.95); stroke-width: 1; }
+  .chart-svg .tick,
+  .chart-svg .xlab,
+  .chart-svg .unit {
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  }
+  .chart-svg .tick { fill: var(--muted); font-size: 12px; }
+  .chart-svg .tick-l { text-anchor: end; }
+  .chart-svg .tick-r { text-anchor: start; fill: #5ce1ff; }
+  .chart-svg .xlab { fill: var(--text-dim); font-size: 12px; }
+  .chart-svg .xper { fill: var(--muted); font-size: 11px; }
+  .chart-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem 0.85rem;
+    margin-top: 0.4rem;
+  }
+  .chart-legend .leg {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    font-weight: 600;
+  }
+  .chart-legend .sw {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+    flex-shrink: 0;
+  }
+  .chart-note {
+    font-size: 0.75rem;
+    color: var(--muted);
+  }
+  .chart-tip {
+    position: absolute;
+    z-index: 5;
+    pointer-events: none;
+    background: #12161f;
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-size: 0.78rem;
+    font-weight: 600;
+    line-height: 1.35;
+    padding: 0.35rem 0.55rem;
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+    white-space: pre;
+    max-width: calc(100% - 8px);
+  }
+  @media (min-width: 800px) {
+    #charts { grid-template-columns: 1fr 1fr; align-items: start; }
+    .chart-block.wide, .chart-note { grid-column: 1 / -1; }
+  }
+
   footer {
     margin-top: 1.5rem;
     text-align: center;
@@ -378,6 +457,11 @@
     <div class="card">
       <h2><span class="dot"></span> Viimeisin check</h2>
       <div id="lastDetail"></div>
+    </div>
+
+    <div class="card span-2">
+      <h2><span class="dot"></span> Kehitys</h2>
+      <div id="charts"></div>
     </div>
 
     <div class="card span-2">
@@ -655,6 +739,276 @@ const HISTORY = [
   tbody.innerHTML = tableHtml.join('');
   if (cardsEl) cardsEl.innerHTML = cardHtml.join('');
 
+
+  const CHARTS = [
+    {
+      title: 'Latenssi · ms',
+      unitL: 'ms',
+      zeroL: true,
+      series: [
+        { key: 'gw_ms', label: 'Gateway', color: '#3dff9a', axis: 'l' },
+        { key: 'move_ms', label: 'Move', color: '#5b8cff', axis: 'l' },
+      ],
+    },
+    {
+      title: 'Nopeus · Mbps',
+      unitL: 'Mbps',
+      zeroL: true,
+      series: [
+        { key: 'download_mbps', label: 'Lataus', color: '#3dff9a', axis: 'l' },
+        { key: 'upload_mbps', label: 'Lähetys', color: '#ffb84d', axis: 'l' },
+      ],
+    },
+    {
+      title: 'RSSI · dBm',
+      unitL: 'dBm',
+      zeroL: false,
+      wide: true,
+      series: [
+        { key: 'rssi', label: 'RSSI', color: '#5ce1ff', axis: 'l' },
+      ],
+    },
+  ];
+
+  function niceScale(min, max, tickTarget) {
+    if (!(max > min)) {
+      const pad = Math.abs(min) > 0 ? Math.abs(min) * 0.25 : 1;
+      min -= pad;
+      max += pad;
+    }
+    const rough = (max - min) / Math.max(1, tickTarget - 1);
+    const pow = Math.pow(10, Math.floor(Math.log10(rough)));
+    const n = rough / pow;
+    const mult = n <= 1.5 ? 1 : n <= 3 ? 2 : n <= 7 ? 5 : 10;
+    const step = mult * pow;
+    let niceMin = Math.floor(min / step) * step;
+    let niceMax = Math.ceil(max / step) * step;
+    if (niceMax === niceMin) niceMax = niceMin + step;
+    const ticks = [];
+    const count = Math.round((niceMax - niceMin) / step);
+    for (let i = 0; i <= count; i++) {
+      ticks.push(Math.round((niceMin + i * step) * 1000) / 1000);
+    }
+    return { min: ticks[0], max: ticks[ticks.length - 1], step, ticks };
+  }
+
+  function fmtTick(v) {
+    const r = Math.round(v * 10) / 10;
+    return Number.isInteger(r) ? String(Math.round(r)) : String(r);
+  }
+
+  function shortDate(d) {
+    if (!d) return '—';
+    const parts = d.split('-').map(Number);
+    return `${parts[2]}.${parts[1]}.`;
+  }
+
+  function xLabelOf(h) {
+    const per = periodLabel(h.period);
+    return per ? `${shortDate(h.date)} ${per}` : shortDate(h.date);
+  }
+
+  function chartTipText(spec, i) {
+    const row = hist[i];
+    const lines = [`${fmtDate(row.date)} ${periodLabel(row.period)}`.trim()];
+    spec.series.forEach(s => {
+      const v = row[s.key];
+      const unit = s.axis === 'r' ? (spec.unitR || '') : spec.unitL;
+      const shown = (v == null || Number.isNaN(Number(v))) ? '—' : `${fmtTick(Number(v))} ${unit}`;
+      lines.push(`${s.label}: ${shown}`);
+    });
+    return lines.join('\n');
+  }
+
+  function renderChart(spec, width) {
+    const n = hist.length;
+    const dual = spec.series.some(s => s.axis === 'r');
+    const narrow = width < 420;
+    const padL = narrow ? 36 : 42;
+    const padR = dual ? (narrow ? 40 : 46) : 14;
+    const plotW = Math.max(24, width - padL - padR);
+    const labelW = 48;
+    const labelStep = Math.max(1, Math.ceil((n * labelW) / Math.max(plotW, 1)));
+    const showIdx = [];
+    for (let i = 0; i < n; i += labelStep) showIdx.push(i);
+    if (n && showIdx[showIdx.length - 1] !== n - 1) {
+      if ((n - 1) - showIdx[showIdx.length - 1] < labelStep * 0.65) showIdx.pop();
+      showIdx.push(n - 1);
+    }
+    const padT = 14;
+    const padB = 42;
+    const h = narrow ? 220 : 208;
+    const plotH = h - padT - padB;
+
+    function collect(axis) {
+      const vals = [];
+      spec.series.filter(s => s.axis === axis).forEach(s => {
+        hist.forEach(row => {
+          const v = row[s.key];
+          if (v != null && !Number.isNaN(Number(v))) vals.push(Number(v));
+        });
+      });
+      return vals;
+    }
+
+    function scaleFor(vals, zero) {
+      let lo = vals.length ? Math.min(...vals) : 0;
+      let hi = vals.length ? Math.max(...vals) : 1;
+      if (zero) lo = Math.min(0, lo);
+      const span = (hi - lo) || Math.abs(hi) || 1;
+      hi += span * (zero ? 0.04 : 0.2);
+      if (!zero) lo -= span * 0.2;
+      return niceScale(lo, hi, narrow ? 4 : 5);
+    }
+
+    const lScale = scaleFor(collect('l'), !!spec.zeroL);
+    const rScale = dual ? scaleFor(collect('r'), false) : null;
+
+    const xAt = (i) => n <= 1 ? padL + plotW / 2 : padL + (i / (n - 1)) * plotW;
+    const yAt = (v, scale) => {
+      const t = (v - scale.min) / (scale.max - scale.min || 1);
+      return padT + plotH * (1 - t);
+    };
+
+    const parts = [];
+    parts.push(`<svg class="chart-svg" viewBox="0 0 ${width} ${h}" role="img" aria-label="${escapeHtml(spec.title)}">`);
+
+    lScale.ticks.forEach(tv => {
+      const y = yAt(tv, lScale);
+      parts.push(`<line class="grid" x1="${padL}" y1="${y.toFixed(1)}" x2="${(padL + plotW).toFixed(1)}" y2="${y.toFixed(1)}"/>`);
+      parts.push(`<text class="tick tick-l" x="${(padL - 6).toFixed(1)}" y="${(y + 4).toFixed(1)}">${fmtTick(tv)}</text>`);
+    });
+    if (rScale) {
+      rScale.ticks.forEach(tv => {
+        const y = yAt(tv, rScale);
+        parts.push(`<text class="tick tick-r" x="${(padL + plotW + 6).toFixed(1)}" y="${(y + 4).toFixed(1)}">${fmtTick(tv)}</text>`);
+      });
+    }
+
+    spec.series.forEach(s => {
+      const scale = s.axis === 'r' ? rScale : lScale;
+      if (!scale) return;
+      let seg = [];
+      const flush = () => {
+        if (seg.length >= 2) {
+          const d = seg.map(pt => `${pt.x.toFixed(1)},${pt.y.toFixed(1)}`).join(' ');
+          const dash = s.dash ? ` stroke-dasharray="${s.dash}"` : '';
+          parts.push(`<polyline points="${d}" fill="none" stroke="${s.color}" stroke-width="2.25" stroke-linejoin="round" stroke-linecap="round"${dash}/>`);
+        }
+        seg = [];
+      };
+      hist.forEach((row, i) => {
+        const v = row[s.key];
+        if (v == null || Number.isNaN(Number(v))) { flush(); return; }
+        seg.push({ x: xAt(i), y: yAt(Number(v), scale) });
+      });
+      flush();
+      hist.forEach((row, i) => {
+        const v = row[s.key];
+        if (v == null || Number.isNaN(Number(v))) return;
+        const x = xAt(i);
+        const y = yAt(Number(v), scale);
+        const label = `${s.label} ${fmtTick(Number(v))}`;
+        parts.push(`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.6" fill="${s.color}" stroke="#0c0e12" stroke-width="1.5"><title>${escapeHtml(label)}</title></circle>`);
+      });
+    });
+
+    const slot = Math.max(18, plotW / Math.max(n, 1));
+    const labelHalf = 26;
+    showIdx.forEach(i => {
+      const row = hist[i];
+      const lx = Math.max(labelHalf, Math.min(width - labelHalf, xAt(i)));
+      const date = escapeHtml(shortDate(row.date));
+      const per = escapeHtml(periodLabel(row.period) || '');
+      const y1 = h - 24;
+      const y2 = h - 8;
+      parts.push(`<text class="xlab" text-anchor="middle"><tspan x="${lx.toFixed(1)}" y="${y1}">${date}</tspan><tspan x="${lx.toFixed(1)}" y="${y2}" class="xper">${per}</tspan></text>`);
+    });
+
+    hist.forEach((row, i) => {
+      const x = xAt(i);
+      const half = Math.min(22, slot / 2);
+      const tip = escapeHtml(chartTipText(spec, i)).replace(/\n/g, '&#10;');
+      parts.push(`<rect class="hit" x="${(x - half).toFixed(1)}" y="${padT}" width="${(half * 2).toFixed(1)}" height="${plotH.toFixed(1)}" fill="transparent" data-tip="${tip}"/>`);
+    });
+
+    parts.push('</svg>');
+    return parts.join('');
+  }
+
+  function paintCharts() {
+    CHARTS.forEach((spec, i) => {
+      const host = document.getElementById('chartHost' + i);
+      if (!host) return;
+      const w = Math.max(Math.floor(host.clientWidth) || 0, 260);
+      host.innerHTML = renderChart(spec, w);
+    });
+  }
+
+  function initCharts() {
+    const root = document.getElementById('charts');
+    if (!root) return;
+    const tip = document.createElement('div');
+    tip.id = 'chartTip';
+    tip.className = 'chart-tip';
+    tip.hidden = true;
+    root.appendChild(tip);
+    CHARTS.forEach((c, i) => {
+      const block = document.createElement('div');
+      block.className = 'chart-block' + (c.wide ? ' wide' : '');
+      const h3 = document.createElement('h3');
+      h3.textContent = c.title;
+      const host = document.createElement('div');
+      host.className = 'chart-svg-host';
+      host.id = 'chartHost' + i;
+      const legend = document.createElement('div');
+      legend.className = 'chart-legend';
+      legend.innerHTML = c.series.map(s =>
+        `<span class="leg"><i class="sw" style="background:${s.color}"></i>${escapeHtml(s.label)}</span>`
+      ).join('');
+      block.appendChild(h3);
+      block.appendChild(host);
+      block.appendChild(legend);
+      root.appendChild(block);
+    });
+    const note = document.createElement('p');
+    note.className = 'chart-note';
+    note.textContent = 'Aukko viivassa = ei mittausta.';
+    root.appendChild(note);
+
+    const placeTip = (clientX, clientY) => {
+      const r = root.getBoundingClientRect();
+      const tw = tip.offsetWidth || 140;
+      const th = tip.offsetHeight || 48;
+      let x = clientX - r.left + 12;
+      let y = clientY - r.top - th - 10;
+      if (x + tw > r.width - 4) x = r.width - tw - 4;
+      if (x < 4) x = 4;
+      if (y < 4) y = clientY - r.top + 14;
+      tip.style.left = x + 'px';
+      tip.style.top = y + 'px';
+    };
+    const showFrom = (el, ev) => {
+      const hit = el && el.closest ? el.closest('.hit') : null;
+      if (!hit || !root.contains(hit)) {
+        tip.hidden = true;
+        return;
+      }
+      tip.hidden = false;
+      tip.textContent = hit.getAttribute('data-tip') || '';
+      if (ev && ev.clientX != null) placeTip(ev.clientX, ev.clientY);
+    };
+    root.addEventListener('pointerover', (e) => showFrom(e.target, e));
+    root.addEventListener('pointermove', (e) => { if (!tip.hidden) showFrom(e.target, e); });
+    root.addEventListener('pointerdown', (e) => showFrom(e.target, e));
+    root.addEventListener('pointerout', (e) => {
+      if (e.target.closest && e.target.closest('.hit')) tip.hidden = true;
+    });
+    root.addEventListener('pointerleave', () => { tip.hidden = true; });
+    window.addEventListener('resize', paintCharts);
+    paintCharts();
+  }
+
   function escapeHtml(s) {
     return String(s)
       .replace(/&/g, '&amp;')
@@ -662,6 +1016,7 @@ const HISTORY = [
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;');
   }
+  initCharts();
 })();
 </script>
 </body>
