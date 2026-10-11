@@ -233,7 +233,7 @@
   }
   table.hist {
     width: 100%;
-    min-width: 640px;
+    min-width: 700px;
     border-collapse: collapse;
     font-size: 0.88rem;
   }
@@ -270,6 +270,44 @@
     background: var(--accent);
     opacity: 0.85;
     min-height: 3px;
+  }
+  .spark span.nil {
+    background: transparent;
+    border: 1px dashed var(--border);
+    border-bottom: none;
+    opacity: 1;
+  }
+
+  /* Tukiasemat */
+  .ap-list { display: grid; gap: 0.55rem; }
+  @media (min-width: 680px) { .ap-list { grid-template-columns: 1fr 1fr; } }
+  .ap-item {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0.75rem 0.9rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    min-width: 0;
+  }
+  .ap-item .ap-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.6rem;
+  }
+  .ap-item .ap-name { font-weight: 700; font-size: 0.95rem; }
+  .ap-item .ap-role { font-size: 0.78rem; color: var(--muted); }
+  .ap-item .ap-ch { font-weight: 700; color: var(--accent); font-size: 0.9rem; }
+  .ap-item .ap-meta { font-size: 0.8rem; color: var(--text-dim); line-height: 1.4; overflow-wrap: anywhere; }
+  .ap-item .ap-ping { font-size: 0.82rem; color: var(--muted); }
+  .ap-item .ap-ping strong { color: var(--text); }
+  .pill.small { font-size: 0.72rem; padding: 0.2rem 0.55rem; white-space: nowrap; }
+  .pill.unknown {
+    background: rgba(139,149,168,0.12);
+    color: var(--muted);
+    border-color: rgba(139,149,168,0.35);
   }
   .notes { color: var(--text-dim); font-size: 0.82rem; max-width: 220px; }
   .nullish { color: var(--muted); }
@@ -460,6 +498,11 @@
     </div>
 
     <div class="card span-2">
+      <h2><span class="dot"></span> Tukiasemat</h2>
+      <div class="ap-list" id="apList"></div>
+    </div>
+
+    <div class="card span-2">
       <h2><span class="dot"></span> Kehitys</h2>
       <div id="charts"></div>
     </div>
@@ -474,6 +517,7 @@
               <th>RSSI</th>
               <th>GW</th>
               <th>Move</th>
+              <th>AP ylä</th>
               <th>↓ / ↑</th>
               <th>Spark</th>
               <th>Muistiinpano</th>
@@ -604,14 +648,60 @@ const HISTORY = [
     "download_mbps": 476,
     "upload_mbps": 451,
     "notes": "Viikkotarkistus jarvis.local (la 10.10. klo 8.22). IP 192.168.1.172. 5 GHz ch48/80 MHz, 802.11ac, RSSI -54 / noise -92 dBm, Tx 780 Mbps (MCS 8). GW avg 4.4 ms (0% loss), Move avg 5.8 ms (max 32, 0% loss). Speed: macOS networkQuality ~476/451 Mbps, idle latency 24 ms. 2.4 GHz ch6/20 MHz oletettu (ei mitattavissa 5 GHz -yhteydeltä)."
+  },
+  {
+    "date": "2026-10-11",
+    "period": "iltapäivä",
+    "wifi_24": null,
+    "wifi_5": null,
+    "security": null,
+    "rssi": null,
+    "gw_ms": null,
+    "move_ms": null,
+    "download_mbps": null,
+    "upload_mbps": null,
+    "ap_ylakerta_ms": 7,
+    "ap_ylakerta_loss_pct": 0,
+    "notes": "On-demand-tarkistus homeassistant (su 11.10. klo 14.12). Vain AP-ping UAP-AC-Lite yläkerta 192.168.1.196 LANin yli (kone alakerrassa Valoon Wi-Fissä): 20/20 vastausta, 0% loss, avg 7.2 ms (min 1.7, max 77.1; 1. paketti 77 ms, loput 1.7–9.2 ms). Wi-Fi/RSSI/GW/Move/speed ei mitattu tässä checkissä (null). AP adoptoitu 11.10.2026."
+  }
+];
+const ACCESS_POINTS = [
+  {
+    "name": "Valoo K562",
+    "role": "Gateway / reititin",
+    "ip": "192.168.1.1",
+    "ch_24": 6,
+    "ch_5": 48,
+    "details": "Pääreititin, alakerta",
+    "ping_key": "gw_ms",
+    "loss_key": null,
+    "warn_ms": 20
+  },
+  {
+    "name": "UAP-AC-Lite yläkerta",
+    "role": "UniFi UAP-AC-LITE",
+    "ip": "192.168.1.196",
+    "mac": "24:5A:4C:23:30:E6",
+    "firmware": "6.8.2",
+    "ch_24": 11,
+    "ch_5": 100,
+    "width_24": 20,
+    "width_5": 80,
+    "details": "US-24 portti 13 (PoE) · SSID Huvilla (WPA2) · 2,4 GHz ch 11/20 MHz Low · 5 GHz ch 100 (DFS)/80 MHz Medium",
+    "adopted": "2026-10-11",
+    "ping_key": "ap_ylakerta_ms",
+    "loss_key": "ap_ylakerta_loss_pct",
+    "warn_ms": 20
   }
 ];
 
 (() => {
   const hist = Array.isArray(HISTORY) ? [...HISTORY] : [];
+  const PERIOD_ORDER = { aamu: 1, 'päivä': 2, 'iltapäivä': 3, ilta: 4, 'yö': 5 };
+  const periodKey = (p) => PERIOD_ORDER[p] || 2;
   hist.sort((a, b) => {
-    const ka = `${a.date || ''} ${a.period === 'ilta' ? '2' : '1'}`;
-    const kb = `${b.date || ''} ${b.period === 'ilta' ? '2' : '1'}`;
+    const ka = `${a.date || ''} ${periodKey(a.period)}`;
+    const kb = `${b.date || ''} ${periodKey(b.period)}`;
     return ka.localeCompare(kb);
   });
 
@@ -626,43 +716,95 @@ const HISTORY = [
     const [y, m, day] = d.split('-').map(Number);
     return `${day}.${m}.${y}`;
   };
-  const periodLabel = (p) => (p === 'ilta' ? 'ilta' : p === 'aamu' ? 'aamu' : (p || ''));
-  const num = (v, digits = 0) => (v == null || Number.isNaN(v) ? null : Number(v).toFixed(digits));
+  const periodLabel = (p) => (p || '');
+  const isNum = (v) => v != null && v !== '' && typeof v !== 'boolean' && Number.isFinite(Number(v));
+  const num = (v, digits = 0) => (isNum(v) ? Number(v).toFixed(digits) : null);
   const show = (v, unit = '', digits = 0) => {
     const n = num(v, digits);
     return n == null ? '—' : `${n}${unit}`;
   };
 
-  function statusOf(c) {
-    if (!c) return 'warn';
-    const badRssi = c.rssi != null && c.rssi < -70;
-    const badGw = c.gw_ms != null && c.gw_ms > 20;
-    const badMove = c.move_ms != null && c.move_ms > 40;
-    return (badRssi || badGw || badMove) ? 'warn' : 'healthy';
+  // Viimeisin rivi, jossa kenttä on mitattu (luku). Osittaiset rivit (null/puuttuu) ohitetaan.
+  function latestOf(key) {
+    for (let i = hist.length - 1; i >= 0; i--) {
+      if (isNum(hist[i][key])) return { value: Number(hist[i][key]), row: hist[i] };
+    }
+    return null;
+  }
+  // Viimeisin rivi, jossa AP:n ping-kenttä on mukana (myös null = ei vastausta).
+  function latestApCheck(ap) {
+    for (let i = hist.length - 1; i >= 0; i--) {
+      const r = hist[i];
+      const has = Object.prototype.hasOwnProperty.call(r, ap.ping_key) ||
+        (ap.loss_key && Object.prototype.hasOwnProperty.call(r, ap.loss_key));
+      if (has) return r;
+    }
+    return null;
+  }
+  // AP-tila: 'healthy' | 'warn' | 'unknown' (ei vielä mitattu)
+  function apStatus(ap) {
+    if (!ap.loss_key) {
+      const l = latestOf(ap.ping_key);
+      if (!l) return { st: 'unknown', ms: null, loss: null, row: null };
+      return { st: l.value > ap.warn_ms ? 'warn' : 'healthy', ms: l.value, loss: null, row: l.row };
+    }
+    const r = latestApCheck(ap);
+    if (!r) return { st: 'unknown', ms: null, loss: null, row: null };
+    const ms = isNum(r[ap.ping_key]) ? Number(r[ap.ping_key]) : null;
+    const loss = isNum(r[ap.loss_key]) ? Number(r[ap.loss_key]) : null;
+    const noResp = ms == null || (loss != null && loss >= 100);
+    const bad = noResp || ms > ap.warn_ms || (loss != null && loss > 0);
+    return { st: bad ? 'warn' : 'healthy', ms, loss, row: r, noResp };
   }
 
-  const st = statusOf(last);
+  // Tila: jokaisesta tarkistuksesta viimeisin mitattu arvo (osittainen rivi ei peitä aiempaa).
+  const statusReasons = [];
+  function statusOverall() {
+    const rssi = latestOf('rssi');
+    const gw = latestOf('gw_ms');
+    const mv = latestOf('move_ms');
+    if (rssi && rssi.value < -70) statusReasons.push(`RSSI ${rssi.value} dBm`);
+    if (gw && gw.value > 20) statusReasons.push(`Gateway ${gw.value} ms`);
+    if (mv && mv.value > 40) statusReasons.push(`Move ${mv.value} ms`);
+    ACCESS_POINTS.filter(ap => ap.loss_key).forEach(ap => {
+      const a = apStatus(ap);
+      if (a.st !== 'warn') return;
+      if (a.noResp) statusReasons.push(`${ap.name}: ei vastausta`);
+      else statusReasons.push(`${ap.name}: ${a.ms} ms / ${a.loss ?? '—'} % loss`);
+    });
+    return statusReasons.length ? 'warn' : 'healthy';
+  }
+
+  const st = statusOverall();
   document.getElementById('statusPill').innerHTML =
-    `<span class="pill ${st}"><span class="dot"></span>${st === 'healthy' ? 'Terve' : 'Varoitus'}</span>`;
+    `<span class="pill ${st}" title="${escapeHtml(statusReasons.join(', ') || 'Kaikki tarkistukset rajoissa')}"><span class="dot"></span>${st === 'healthy' ? 'Terve' : 'Varoitus'}</span>`;
 
   document.getElementById('metaRow').innerHTML =
     `<span>Viimeisin: <strong style="color:var(--text)">${fmtDate(last.date)} ${periodLabel(last.period)}</strong></span>` +
     (last.notes ? `<span>${escapeHtml(last.notes)}</span>` : '');
 
-  const metrics = [
-    { label: 'Lataus', value: last.download_mbps, unit: 'Mbps', digits: 0, sub: 'download' },
-    { label: 'Lähetys', value: last.upload_mbps, unit: 'Mbps', digits: 0, sub: 'upload' },
-    { label: 'Gateway', value: last.gw_ms, unit: 'ms', digits: 0, sub: 'latenssi' },
-    { label: 'Move', value: last.move_ms, unit: 'ms', digits: 0, sub: 'ulkoinen' },
-    { label: 'RSSI', value: last.rssi, unit: 'dBm', digits: 0, sub: 'Wi‑Fi' },
+  const metricDefs = [
+    { label: 'Lataus', key: 'download_mbps', unit: 'Mbps', digits: 0, sub: 'download' },
+    { label: 'Lähetys', key: 'upload_mbps', unit: 'Mbps', digits: 0, sub: 'upload' },
+    { label: 'Gateway', key: 'gw_ms', unit: 'ms', digits: 0, sub: 'latenssi' },
+    { label: 'Move', key: 'move_ms', unit: 'ms', digits: 0, sub: 'ulkoinen' },
+    { label: 'AP yläkerta', key: 'ap_ylakerta_ms', unit: 'ms', digits: 0, sub: 'ping LAN' },
+    { label: 'RSSI', key: 'rssi', unit: 'dBm', digits: 0, sub: 'Wi‑Fi' },
   ];
+  // Näytä viimeisin mitattu arvo; jos se on vanhemmalta riviltä, kerro päivä.
+  const metrics = metricDefs.map(m => {
+    const l = latestOf(m.key);
+    if (!l) return { ...m, value: null };
+    const older = l.row !== last;
+    return { ...m, value: l.value, sub: older ? `${m.sub} · ${shortDate(l.row.date)} ${periodLabel(l.row.period)}`.trim() : m.sub };
+  });
 
   const metricsEl = document.getElementById('metrics');
   metricsEl.className = 'grid';
   metricsEl.style.gridTemplateColumns = 'repeat(auto-fit, minmax(140px, 1fr))';
   metricsEl.style.marginBottom = '1rem';
   metricsEl.innerHTML = metrics.map(m => {
-    const empty = m.value == null;
+    const empty = !isNum(m.value);
     const val = empty
       ? `<div class="metric-big muted">—</div>`
       : `<div class="metric-big">${num(m.value, m.digits ?? 0)}<span class="metric-unit">${m.unit}</span></div>`;
@@ -672,22 +814,25 @@ const HISTORY = [
 
   // Show RSSI as part of last detail; also replace one tile if speeds null — already shown
   // Wi-Fi card
-  const w24 = last.wifi_24 || {};
-  const w5 = last.wifi_5 || {};
+  const wifiRow = [...hist].reverse().find(r => r.wifi_24 || r.wifi_5 || r.security) || last;
+  const wifiOlder = wifiRow !== last;
+  const w24 = wifiRow.wifi_24 || {};
+  const w5 = wifiRow.wifi_5 || {};
+  const rssiL = latestOf('rssi');
   document.getElementById('wifiCard').innerHTML = `
     <div class="wifi-band">
       <div class="left">
         <div class="band-name">2,4 GHz</div>
-        <div class="band-meta">kaista</div>
+        <div class="band-meta">Valoo K562${wifiOlder ? ` · mitattu ${shortDate(wifiRow.date)}` : ''}</div>
       </div>
       <div class="vals">ch ${w24.channel ?? '—'} / ${w24.width_mhz ?? '—'} MHz
-        <small>RSSI ${show(last.rssi, ' dBm')}</small>
+        <small>RSSI ${show(rssiL ? rssiL.value : null, ' dBm')}</small>
       </div>
     </div>
     <div class="wifi-band">
       <div class="left">
         <div class="band-name">5 GHz</div>
-        <div class="band-meta">kaista</div>
+        <div class="band-meta">Valoo K562${wifiOlder ? ` · mitattu ${shortDate(wifiRow.date)}` : ''}</div>
       </div>
       <div class="vals">ch ${w5.channel ?? '—'} / ${w5.width_mhz ?? '—'} MHz
         <small>leveä kanava</small>
@@ -695,7 +840,7 @@ const HISTORY = [
     </div>`;
 
   document.getElementById('securityBadge').innerHTML =
-    last.security ? `<span class="sec-badge">Turva: ${escapeHtml(last.security)}</span>` : '';
+    wifiRow.security ? `<span class="sec-badge">Turva: ${escapeHtml(wifiRow.security)}</span>` : '';
 
   document.getElementById('lastDetail').innerHTML = `
     <div class="wifi-row">
@@ -711,11 +856,47 @@ const HISTORY = [
         <div class="left"><div class="band-name">Move</div><div class="band-meta">ulkoinen</div></div>
         <div class="vals">${show(last.move_ms, ' ms')}</div>
       </div>
+      <div class="wifi-band">
+        <div class="left"><div class="band-name">AP yläkerta</div><div class="band-meta">ping 192.168.1.196</div></div>
+        <div class="vals">${show(last.ap_ylakerta_ms, ' ms')}${isNum(last.ap_ylakerta_loss_pct) ? `<small>${num(last.ap_ylakerta_loss_pct)} % loss</small>` : ''}</div>
+      </div>
     </div>`;
+
+  // Tukiasemat
+  const apEl = document.getElementById('apList');
+  if (apEl) {
+    apEl.innerHTML = ACCESS_POINTS.map(ap => {
+      const a = apStatus(ap);
+      const pillTxt = a.st === 'healthy' ? 'OK' : a.st === 'warn' ? 'Varoitus' : 'Ei mitattu';
+      let ping = 'Ping: ei mittausta vielä';
+      if (a.row) {
+        const when = `${fmtDate(a.row.date)} ${periodLabel(a.row.period)}`.trim();
+        const val = a.noResp ? '<strong>ei vastausta</strong>' : `<strong>${show(a.ms, ' ms')}</strong>`;
+        const loss = a.loss != null ? ` · ${num(a.loss)} % loss` : '';
+        ping = `Ping: ${val}${loss} <span class="nullish">(${escapeHtml(when)})</span>`;
+      }
+      const meta = [
+        ap.ip,
+        ap.mac ? `MAC ${ap.mac}` : null,
+        ap.firmware ? `fw ${ap.firmware}` : null,
+        ap.details || null,
+        ap.adopted ? `adoptoitu ${fmtDate(ap.adopted)}` : null,
+      ].filter(Boolean).map(escapeHtml).join(' · ');
+      return `<div class="ap-item">
+        <div class="ap-top">
+          <div><div class="ap-name">${escapeHtml(ap.name)}</div><div class="ap-role">${escapeHtml(ap.role || '')}</div></div>
+          <span class="pill small ${a.st}"><span class="dot"></span>${pillTxt}</span>
+        </div>
+        <div class="ap-ch">ch ${ap.ch_24 ?? '—'} / ${ap.ch_5 ?? '—'}</div>
+        <div class="ap-meta">${meta}</div>
+        <div class="ap-ping">${ping}</div>
+      </div>`;
+    }).join('');
+  }
 
   // History table + sparklines (RSSI inverted scale for height)
   const tbody = document.querySelector('#histTable tbody');
-  const rssiVals = hist.map(h => h.rssi).filter(v => v != null);
+  const rssiVals = hist.map(h => h.rssi).filter(isNum).map(Number);
   const rMin = rssiVals.length ? Math.min(...rssiVals) : -80;
   const rMax = rssiVals.length ? Math.max(...rssiVals) : -40;
 
@@ -728,18 +909,18 @@ const HISTORY = [
     // spark: all points up to this check (chronological)
     const upto = hist.slice(0, hist.length - idx);
     const bars = upto.map(p => {
-      let hgt = 8;
-      if (p.rssi != null && rMax !== rMin) {
-        hgt = 4 + ((p.rssi - rMin) / (rMax - rMin)) * 18;
-      } else if (p.rssi != null) {
-        hgt = 14;
-      }
+      // Ei RSSI-mittausta → katkoviivainen tyhjä paikka, ei 0-/oletuspalkkia.
+      if (!isNum(p.rssi)) return `<span class="nil" style="height:22px" title="ei RSSI-mittausta"></span>`;
+      const hgt = rMax !== rMin ? 4 + ((p.rssi - rMin) / (rMax - rMin)) * 18 : 14;
       return `<span style="height:${hgt.toFixed(1)}px"></span>`;
     }).join('');
 
-    const down = h.download_mbps == null ? '—' : num(h.download_mbps, 0);
-    const up = h.upload_mbps == null ? '—' : num(h.upload_mbps, 0);
-    const speedEmpty = h.download_mbps == null && h.upload_mbps == null;
+    const down = show(h.download_mbps);
+    const up = show(h.upload_mbps);
+    const speedEmpty = !isNum(h.download_mbps) && !isNum(h.upload_mbps);
+    const apTxt = isNum(h.ap_ylakerta_ms)
+      ? `${num(h.ap_ylakerta_ms)} ms${isNum(h.ap_ylakerta_loss_pct) && Number(h.ap_ylakerta_loss_pct) > 0 ? ` (${num(h.ap_ylakerta_loss_pct)} % loss)` : ''}`
+      : (Object.prototype.hasOwnProperty.call(h, 'ap_ylakerta_ms') && isNum(h.ap_ylakerta_loss_pct) ? 'ei vastausta' : null);
     const speed = speedEmpty
       ? '<span class="nullish">—</span>'
       : `${down} / ${up}`;
@@ -751,6 +932,7 @@ const HISTORY = [
       <td>${show(h.rssi)}</td>
       <td>${show(h.gw_ms, ' ms')}</td>
       <td>${show(h.move_ms, ' ms')}</td>
+      <td>${apTxt ?? '<span class="nullish">—</span>'}</td>
       <td>${speed}</td>
       <td><div class="spark" title="RSSI-trendi">${bars}</div></td>
       <td class="notes">${notes}</td>
@@ -768,6 +950,7 @@ const HISTORY = [
         <div class="hc-metric"><span class="k">RSSI</span><span class="v">${show(h.rssi, ' dBm')}</span></div>
         <div class="hc-metric"><span class="k">Gateway</span><span class="v">${show(h.gw_ms, ' ms')}</span></div>
         <div class="hc-metric"><span class="k">Move</span><span class="v">${show(h.move_ms, ' ms')}</span></div>
+        <div class="hc-metric"><span class="k">AP yläkerta</span><span class="v">${apTxt ?? '—'}</span></div>
         <div class="hc-metric"><span class="k">↓ / ↑</span><span class="v">${speedCard}</span></div>
       </div>
       ${notes ? `<div class="hc-notes">${notes}</div>` : ''}
@@ -786,6 +969,7 @@ const HISTORY = [
       series: [
         { key: 'gw_ms', label: 'Gateway', color: '#3dff9a', axis: 'l' },
         { key: 'move_ms', label: 'Move', color: '#5b8cff', axis: 'l' },
+        { key: 'ap_ylakerta_ms', label: 'AP yläkerta', color: '#c792ff', axis: 'l' },
       ],
     },
     {
@@ -852,7 +1036,7 @@ const HISTORY = [
     spec.series.forEach(s => {
       const v = row[s.key];
       const unit = s.axis === 'r' ? (spec.unitR || '') : spec.unitL;
-      const shown = (v == null || Number.isNaN(Number(v))) ? '—' : `${fmtTick(Number(v))} ${unit}`;
+      const shown = !isNum(v) ? '—' : `${fmtTick(Number(v))} ${unit}`;
       lines.push(`${s.label}: ${shown}`);
     });
     return lines.join('\n');
@@ -883,7 +1067,7 @@ const HISTORY = [
       spec.series.filter(s => s.axis === axis).forEach(s => {
         hist.forEach(row => {
           const v = row[s.key];
-          if (v != null && !Number.isNaN(Number(v))) vals.push(Number(v));
+          if (isNum(v)) vals.push(Number(v));
         });
       });
       return vals;
@@ -937,13 +1121,13 @@ const HISTORY = [
       };
       hist.forEach((row, i) => {
         const v = row[s.key];
-        if (v == null || Number.isNaN(Number(v))) { flush(); return; }
+        if (!isNum(v)) { flush(); return; }
         seg.push({ x: xAt(i), y: yAt(Number(v), scale) });
       });
       flush();
       hist.forEach((row, i) => {
         const v = row[s.key];
-        if (v == null || Number.isNaN(Number(v))) return;
+        if (!isNum(v)) return;
         const x = xAt(i);
         const y = yAt(Number(v), scale);
         const label = `${s.label} ${fmtTick(Number(v))}`;
@@ -1011,7 +1195,7 @@ const HISTORY = [
     });
     const note = document.createElement('p');
     note.className = 'chart-note';
-    note.textContent = 'Aukko viivassa = ei mittausta.';
+    note.textContent = 'Aukko viivassa = ei mittausta (null/puuttuu ei piirry nollana). Yksittäinen piste = vain yksi mittaus.';
     root.appendChild(note);
 
     const placeTip = (clientX, clientY) => {
