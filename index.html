@@ -233,7 +233,7 @@
   }
   table.hist {
     width: 100%;
-    min-width: 700px;
+    min-width: 780px;
     border-collapse: collapse;
     font-size: 0.88rem;
   }
@@ -518,6 +518,7 @@
               <th>GW</th>
               <th>Move</th>
               <th>AP ylä</th>
+              <th>AP keittiö</th>
               <th>↓ / ↑</th>
               <th>Spark</th>
               <th>Muistiinpano</th>
@@ -699,6 +700,23 @@ const HISTORY = [
     "ap_ylakerta_ms": 8,
     "ap_ylakerta_loss_pct": 0,
     "notes": "Viikkotarkistus homeassistant (la 24.10. klo 8.22). IP 192.168.1.172. 5 GHz ch48/80 MHz, 802.11ac, WPA2 Personal, RSSI -51 / noise -94 dBm, Tx 585 Mbps (MCS 7). GW avg 8.0 ms (min 2.2, max 94.6, 0% loss; yksittäinen piikki), Move avg 4.3 ms (min 2.3, max 11.5, 0% loss), UAP-AC-Lite yläkerta 192.168.1.196 avg 7.5 ms (min 1.9, max 82.2, 0% loss; yksittäinen piikki). Speed: macOS networkQuality 476/453 Mbps, idle latency 25 ms. 2.4 GHz ei mitattavissa 5 GHz -yhteydeltä (null)."
+  },
+  {
+    "date": "2026-10-30",
+    "period": "iltapäivä",
+    "wifi_24": null,
+    "wifi_5": null,
+    "security": null,
+    "rssi": null,
+    "gw_ms": 4,
+    "move_ms": 5,
+    "download_mbps": null,
+    "upload_mbps": null,
+    "ap_ylakerta_ms": 4,
+    "ap_ylakerta_loss_pct": 0,
+    "ap_keittio_ms": 3,
+    "ap_keittio_loss_pct": 0,
+    "notes": "On-demand-tarkistus homeassistant (pe 30.10. klo 17.09–17.10). Vain ping (20 kpl / kohde), ei speedtestiä. UAP-AC-Lite Keittiö 192.168.1.3 (1. baseline): 20/20, 0% loss, avg 3.2 ms (min 1.9, max 9.5). UAP-AC-Lite yläkerta 192.168.1.196: 20/20, 0% loss, avg 3.6 ms (min 2.0, max 9.4). GW 192.168.1.1: avg 4.0 ms (min 2.2, max 9.8, 0% loss). Move (Sonos Move 192.168.1.158): avg 4.8 ms (min 3.0, max 10.9, 0% loss). Wi-Fi/RSSI/speed ei mitattu tässä checkissä (null). Keittiön AP adoptoitu 30.10.2026."
   }
 ];
 const ACCESS_POINTS = [
@@ -727,6 +745,22 @@ const ACCESS_POINTS = [
     "adopted": "2026-10-11",
     "ping_key": "ap_ylakerta_ms",
     "loss_key": "ap_ylakerta_loss_pct",
+    "warn_ms": 20
+  },
+  {
+    "name": "UAP-AC-Lite Keittiö",
+    "role": "UniFi UAP-AC-LITE",
+    "ip": "192.168.1.3",
+    "mac": null,
+    "firmware": "6.8.2",
+    "ch_24": 1,
+    "ch_5": 52,
+    "width_24": 20,
+    "width_5": 80,
+    "details": "US-24 portti 23 · MAC ei tiedossa · 2,4 GHz ch 1/20 MHz Low · 5 GHz ch 52 (DFS)/80 MHz Medium",
+    "adopted": "2026-10-30",
+    "ping_key": "ap_keittio_ms",
+    "loss_key": "ap_keittio_loss_pct",
     "warn_ms": 20
   }
 ];
@@ -825,6 +859,7 @@ const ACCESS_POINTS = [
     { label: 'Gateway', key: 'gw_ms', unit: 'ms', digits: 0, sub: 'latenssi' },
     { label: 'Move', key: 'move_ms', unit: 'ms', digits: 0, sub: 'ulkoinen' },
     { label: 'AP yläkerta', key: 'ap_ylakerta_ms', unit: 'ms', digits: 0, sub: 'ping LAN' },
+    { label: 'AP keittiö', key: 'ap_keittio_ms', unit: 'ms', digits: 0, sub: 'ping LAN' },
     { label: 'RSSI', key: 'rssi', unit: 'dBm', digits: 0, sub: 'Wi‑Fi' },
   ];
   // Näytä viimeisin mitattu arvo; jos se on vanhemmalta riviltä, kerro päivä.
@@ -896,6 +931,10 @@ const ACCESS_POINTS = [
         <div class="left"><div class="band-name">AP yläkerta</div><div class="band-meta">ping 192.168.1.196</div></div>
         <div class="vals">${show(last.ap_ylakerta_ms, ' ms')}${isNum(last.ap_ylakerta_loss_pct) ? `<small>${num(last.ap_ylakerta_loss_pct)} % loss</small>` : ''}</div>
       </div>
+      <div class="wifi-band">
+        <div class="left"><div class="band-name">AP keittiö</div><div class="band-meta">ping 192.168.1.3</div></div>
+        <div class="vals">${show(last.ap_keittio_ms, ' ms')}${isNum(last.ap_keittio_loss_pct) ? `<small>${num(last.ap_keittio_loss_pct)} % loss</small>` : ''}</div>
+      </div>
     </div>`;
 
   // Tukiasemat
@@ -954,9 +993,12 @@ const ACCESS_POINTS = [
     const down = show(h.download_mbps);
     const up = show(h.upload_mbps);
     const speedEmpty = !isNum(h.download_mbps) && !isNum(h.upload_mbps);
-    const apTxt = isNum(h.ap_ylakerta_ms)
-      ? `${num(h.ap_ylakerta_ms)} ms${isNum(h.ap_ylakerta_loss_pct) && Number(h.ap_ylakerta_loss_pct) > 0 ? ` (${num(h.ap_ylakerta_loss_pct)} % loss)` : ''}`
-      : (Object.prototype.hasOwnProperty.call(h, 'ap_ylakerta_ms') && isNum(h.ap_ylakerta_loss_pct) ? 'ei vastausta' : null);
+    // AP-solun teksti; puuttuva kenttä (vanhat rivit) → null → "—".
+    const apCell = (msKey, lossKey) => isNum(h[msKey])
+      ? `${num(h[msKey])} ms${isNum(h[lossKey]) && Number(h[lossKey]) > 0 ? ` (${num(h[lossKey])} % loss)` : ''}`
+      : (Object.prototype.hasOwnProperty.call(h, msKey) && isNum(h[lossKey]) ? 'ei vastausta' : null);
+    const apTxt = apCell('ap_ylakerta_ms', 'ap_ylakerta_loss_pct');
+    const apKTxt = apCell('ap_keittio_ms', 'ap_keittio_loss_pct');
     const speed = speedEmpty
       ? '<span class="nullish">—</span>'
       : `${down} / ${up}`;
@@ -969,6 +1011,7 @@ const ACCESS_POINTS = [
       <td>${show(h.gw_ms, ' ms')}</td>
       <td>${show(h.move_ms, ' ms')}</td>
       <td>${apTxt ?? '<span class="nullish">—</span>'}</td>
+      <td>${apKTxt ?? '<span class="nullish">—</span>'}</td>
       <td>${speed}</td>
       <td><div class="spark" title="RSSI-trendi">${bars}</div></td>
       <td class="notes">${notes}</td>
@@ -987,6 +1030,7 @@ const ACCESS_POINTS = [
         <div class="hc-metric"><span class="k">Gateway</span><span class="v">${show(h.gw_ms, ' ms')}</span></div>
         <div class="hc-metric"><span class="k">Move</span><span class="v">${show(h.move_ms, ' ms')}</span></div>
         <div class="hc-metric"><span class="k">AP yläkerta</span><span class="v">${apTxt ?? '—'}</span></div>
+        <div class="hc-metric"><span class="k">AP keittiö</span><span class="v">${apKTxt ?? '—'}</span></div>
         <div class="hc-metric"><span class="k">↓ / ↑</span><span class="v">${speedCard}</span></div>
       </div>
       ${notes ? `<div class="hc-notes">${notes}</div>` : ''}
@@ -1006,6 +1050,7 @@ const ACCESS_POINTS = [
         { key: 'gw_ms', label: 'Gateway', color: '#3dff9a', axis: 'l' },
         { key: 'move_ms', label: 'Move', color: '#5b8cff', axis: 'l' },
         { key: 'ap_ylakerta_ms', label: 'AP yläkerta', color: '#c792ff', axis: 'l' },
+        { key: 'ap_keittio_ms', label: 'AP keittiö', color: '#ff79c6', axis: 'l' },
       ],
     },
     {
