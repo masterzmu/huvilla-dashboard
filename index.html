@@ -757,6 +757,28 @@ const HISTORY = [
     "ap_west_ms": 3,
     "ap_west_loss_pct": 0,
     "notes": "On-demand-tarkistus homeassistant (pe 30.10. klo 17.27). Vain ping (20 kpl / kohde), ei speedtestiä. UAP-AC-Lite West 192.168.1.5 (uusi AP, 1. baseline): 20/20, 0% loss, avg 3.2 ms (min 1.9, max 9.2). UAP-AC-Lite East (ent. yläkerta) 192.168.1.196: 20/20, 0% loss, avg 6.8 ms (min 2.0, max 56.1; yksittäinen piikki). UAP-AC-Lite Keittiö 192.168.1.3: 20/20, 0% loss, avg 4.2 ms (min 2.0, max 9.9). GW 192.168.1.1: avg 4.0 ms (min 2.2, max 9.7, 0% loss). Move (192.168.1.158) ei mitattu (null). Wi-Fi/RSSI/speed ei mitattu tässä checkissä (null). West-AP lisätty yläkertaan 30.10.2026 (US-24 portti 19, 2,4 GHz ch 1/20 MHz, 5 GHz ch 116 (DFS)/80 MHz)."
+  },
+  {
+    "date": "2026-10-31",
+    "period": "aamu",
+    "wifi_24": null,
+    "wifi_5": {
+      "channel": 48,
+      "width_mhz": 80
+    },
+    "security": "WPA2",
+    "rssi": -58,
+    "gw_ms": 4,
+    "move_ms": 4,
+    "download_mbps": 473,
+    "upload_mbps": 341,
+    "ap_ylakerta_ms": 4,
+    "ap_ylakerta_loss_pct": 0,
+    "ap_keittio_ms": 4,
+    "ap_keittio_loss_pct": 0,
+    "ap_west_ms": 5,
+    "ap_west_loss_pct": 0,
+    "notes": "Viikkotarkistus homeassistant (la 31.10. klo 8.25). IP 192.168.1.172. 5 GHz ch48/80 MHz, 802.11ac, WPA2 Personal, RSSI -58 / noise -94 dBm, Tx 585 Mbps (MCS 7). GW avg 3.8 ms (min 2.2, max 9.2, 0% loss), Move avg 4.2 ms (min 2.8, max 10.6, 0% loss), UAP-AC-Lite East 192.168.1.196 avg 3.9 ms (min 1.9, max 9.5, 0% loss), UAP-AC-Lite West 192.168.1.5 avg 5.0 ms (min 1.9, max 22.8, 0% loss; yksittäinen piikki), UAP-AC-Lite Keittiö 192.168.1.3 avg 4.2 ms (min 1.9, max 9.1, 0% loss). Speed: macOS networkQuality 473/341 Mbps, idle latency 25 ms. 2.4 GHz ei mitattavissa 5 GHz -yhteydeltä (null)."
   }
 ];
 const ACCESS_POINTS = [
